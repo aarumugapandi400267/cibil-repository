@@ -167,7 +167,7 @@ const authenticate = (req, res, next) => {
             console.log("Email sent:", info.response);
 
             // Attach OTP in response
-            res.json({ ...result, otp });
+            res.json({ ...result, otp:otp+"" });
         });
 
     } catch (error) {

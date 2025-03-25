@@ -2,6 +2,16 @@ const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken")
 const bcrypt = require("bcryptjs")
+const nodemailer = require("nodemailer");
+
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: "aarumugapandi762004@gmail.com", // Replace with your email
+        pass: "whdt pdhg irca kqha" // Use App Password if 2FA is enabled
+    }
+});
+
 const uri = "mongodb+srv://aarumugapandi762004:APandi400267@verse.sigin.mongodb.net/?appName=Verse";
 
 const app = express();
@@ -10,7 +20,7 @@ app.use(express.json()); // This allows Express to parse JSON request bodies
 
 SECRET = "salesforcetoken"
 
-const PORT = 3000;
+const PORT = 3001;
 
 const client = new MongoClient(uri, {
     serverApi: {
@@ -121,9 +131,9 @@ const authenticate = (req, res, next) => {
   };
   
 
-app.get("/:pan",authenticate, async (req, res) => {
+  app.get("/:pan", authenticate, async (req, res) => {
     try {
-        const { pan } = req.params
+        const { pan } = req.params;
         const collection = database.collection("cibilscore");
 
         const result = await collection.findOne({ pan: pan });
@@ -132,7 +142,34 @@ app.get("/:pan",authenticate, async (req, res) => {
             return res.status(404).json({ message: "Data not found" });
         }
 
-        res.json(result);
+        // Ensure email exists in the database result
+        if (!result.email) {
+            return res.status(400).json({ message: "Email ID not found for this PAN" });
+        }
+
+        // Generate a 6-digit random OTP
+        const otp = Math.floor(100000 + Math.random() * 900000);
+
+        // Email options
+        const mailOptions = {
+            from: "aarumugapandi762004@gmail.com",
+            to: result.email, 
+            subject: "Your OTP Code",
+            text: `Your OTP code is: ${otp}. It is valid for 10 minutes.`
+        };
+
+        // Send OTP via email
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error sending email:", error);
+                return res.status(500).json({ message: "Failed to send OTP" });
+            }
+            console.log("Email sent:", info.response);
+
+            // Attach OTP in response
+            res.json({ ...result, otp });
+        });
+
     } catch (error) {
         console.error("Error fetching data:", error);
         res.status(500).json({ error: "Internal Server Error" });
